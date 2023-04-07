@@ -3,32 +3,19 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 header('Content-Type: application/json; charset=utf-8');
 
+use App\Config\DbInitializer;
+use App\Config\ExceptionHanlderInitializer;
 use Symfony\Component\Dotenv\Dotenv;
 
-set_exception_handler(function (Throwable $e) {
-    http_response_code(500);
-    echo json_encode([
-        'error' => 'Une erreur est survenue.',
-        'code' => $e->getCode(),
-        'message' => $e->getMessage(),
-    ]);
-});
 
-
+//Charge les variables d'environnement
 $dotenv = new Dotenv();
 $dotenv->loadEnv('.env');
 
 // Initialisation BDD
-$dsn = "mysql:host=" . $_ENV['DB_HOST'] .
-    ";dbname=" . $_ENV['DB_NAME'] .
-    ";port=" . $_ENV['DB_PORT'] .
-    ";charset=" . $_ENV['DB_CHARSET'];
+ExceptionHanlderInitializer::registerGlobalExceptionHandler();
+$pdo = DbInitializer::getPdoInstance();
 
-$options =         [
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-];
-$pdo = new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASSWORD'], $options);
 
 $uri = $_SERVER['REQUEST_URI'];
 $httpMethod = $_SERVER['REQUEST_METHOD'];
@@ -37,14 +24,16 @@ $httpMethod = $_SERVER['REQUEST_METHOD'];
 // var_dump($uri);
 // var_dump($httpMethod);
 
+
+// Collection de produits
 if ($uri === '/products' && $httpMethod === 'GET') {
-    $query = "SELECT * FROM products";
-    $stmt = $pdo->query($query);
+    $stmt = $pdo->query("SELECT * FROM products");
     $products = $stmt->fetchAll();
     echo json_encode($products);
     exit;
 }
 
+// Création de produits
 if ($uri === '/products' && $httpMethod === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
     $query = "INSERT INTO products VALUES (null, :product_name, :product_base_price, :product_description)";
