@@ -5,6 +5,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 use App\Config\DbInitializer;
 use App\Config\ExceptionHandlerInitializer;
+use App\Crud\Exception\UnprocessableContentException;
+use App\Crud\ProductsCrud;
 use Symfony\Component\Dotenv\Dotenv;
 
 
@@ -21,48 +23,35 @@ $uri = $_SERVER['REQUEST_URI'];
 $httpMethod = $_SERVER['REQUEST_METHOD'];
 
 
-// var_dump($uri);
-// var_dump($httpMethod);
+$uriParts = explode('/', $uri);
+// je mets dans $isItemOperation le résultat (bool) de l'expression "count($uriParts) === 3"
+$isItemOperation = count($uriParts) === 3;
+
+$productsCrud = new ProductsCrud($pdo);
 
 
 // Collection de produits
 if ($uri === '/products' && $httpMethod === 'GET') {
-    $stmt = $pdo->query("SELECT * FROM products");
-    $products = $stmt->fetchAll();
-    echo json_encode($products);
+    echo json_encode($productsCrud->findAll());
     exit;
 }
 
 // Création de produits
 if ($uri === '/products' && $httpMethod === 'POST') {
-    $data = json_decode(file_get_contents("php://input"), true);
-
-    if (!isset($data['name']) || !isset($data['basePrice'])) {
+    try {
+        $data = json_decode(file_get_contents("php://input"), true);
+        $productId = $productsCrud->create($data);
+        http_response_code(201);
+        echo json_encode(["uri" => "/products/$productId"]);
+    } catch (UnprocessableContentException $e) {
         http_response_code(422);
         echo json_encode([
-            'error' => 'Name and base price are required'
+            'error' => $e->getMessage()
         ]);
+    } finally {
         exit;
     }
-    $query = "INSERT INTO products VALUES (null, :product_name, :product_base_price, :product_description)";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        'product_name' => $data['name'],
-        'product_base_price' => $data['basePrice'],
-        'product_description' => $data['description']
-    ]);
-    http_response_code(201);
-    $insertedProductID = $pdo->lastInsertId();
-    echo json_encode(["uri" => "/products/$insertedProductID"]);
-    exit;
 }
-
-
-$uriParts = explode('/', $uri);
-// var_dump($explodedUri);
-
-// je met dans $isItemOperation le résultat (bool) de l'expression "count($uriParts) === 3"
-$isItemOperation = count($uriParts) === 3;
 
 if (!$isItemOperation) {
     http_response_code(404);
