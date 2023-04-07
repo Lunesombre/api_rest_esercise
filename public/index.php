@@ -36,6 +36,14 @@ if ($uri === '/products' && $httpMethod === 'GET') {
 // Création de produits
 if ($uri === '/products' && $httpMethod === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
+
+    if (!isset($data['name']) || !isset($data['basePrice'])) {
+        http_response_code(422);
+        echo json_encode([
+            'error' => 'Name and base price are required'
+        ]);
+        exit;
+    }
     $query = "INSERT INTO products VALUES (null, :product_name, :product_base_price, :product_description)";
     $stmt = $pdo->prepare($query);
     $stmt->execute([
@@ -43,53 +51,68 @@ if ($uri === '/products' && $httpMethod === 'POST') {
         'product_base_price' => $data['basePrice'],
         'product_description' => $data['description']
     ]);
-    if ($stmt->rowCount() === 0) {
-        http_response_code(404);
-        exit;
-    }
     http_response_code(201);
-    $productID = $pdo->lastInsertId();
-    echo json_encode(["uri" => "$uri/$productID"]);
+    $insertedProductID = $pdo->lastInsertId();
+    echo json_encode(["uri" => "/products/$insertedProductID"]);
     exit;
 }
 
-if ($uri !== '/products') {
-    $explodedUri = explode('/', $uri);
-    // var_dump($explodedUri);
-    $id = $explodedUri[2];
-    //     // var_dump($id);
-    //     $getId = "SELECT COUNT(*) AS NbProduct FROM products WHERE id=:id";
-    //     $stmt = $pdo->prepare($getId);
-    //     $stmt->execute([
-    //         'id' => $id
-    //     ]);
-    //     $result = $stmt->fetch();
-    //     $productsExistsInDB = (bool)$result['NbProduct'];
-    // }
 
-    // if ($productsExistsInDB === false) {
-    //     http_response_code(404);
-    //     exit;
+$uriParts = explode('/', $uri);
+// var_dump($explodedUri);
+
+// je met dans $isItemOperation le résultat (bool) de l'expression "count($uriParts) === 3"
+$isItemOperation = count($uriParts) === 3;
+
+if (!$isItemOperation) {
+    http_response_code(404);
+    echo json_encode([
+        'error' => 'Route not found'
+    ]);
+    exit;
+}
+$resourceName = $uriParts[1];
+$id = intval($uriParts[2]);
+if ($id === 0) {
+    http_response_code(404);
+    echo json_encode(["error" => "Product not found"]);
 }
 
+//     // var_dump($id);
+//     $getId = "SELECT COUNT(*) AS NbProduct FROM products WHERE id=:id";
+//     $stmt = $pdo->prepare($getId);
+//     $stmt->execute([
+//         'id' => $id
+//     ]);
+//     $result = $stmt->fetch();
+//     $productsExistsInDB = (bool)$result['NbProduct'];
+// }
+
+// if ($productsExistsInDB === false) {
+//     http_response_code(404);
+//     exit;
+
+
 // GET un seul produit
-if ($uri === "/products/$id" && $httpMethod === 'GET') {
+// if ($uri === "/products/$id" && $httpMethod === 'GET') {
+if ($resourceName === "products" && $isItemOperation && $httpMethod === 'GET') {
     $query = "SELECT * FROM products WHERE id = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute([
         'id' => $id
     ]);
-    $data = $stmt->fetch();
-    if ($data === false) {
+    $product = $stmt->fetch();
+    if ($product === false) {
         http_response_code(404);
         exit;
     }
-    echo json_encode($data);
+    echo json_encode($product);
     exit;
 }
 
 // DELETE
-if ($uri === "/products/$id" && $httpMethod === 'DELETE') {
+// if ($uri === "/products/$id" && $httpMethod === 'DELETE') {
+if ($resourceName === "products" && $isItemOperation && $httpMethod === 'DELETE') {
     $query = "DELETE FROM products WHERE id = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute([
@@ -104,8 +127,18 @@ if ($uri === "/products/$id" && $httpMethod === 'DELETE') {
 }
 
 // UPDATE with PUT
-if ($uri === "/products/$id" && $httpMethod === 'PUT') {
+// if ($uri === "/products/$id" && $httpMethod === 'PUT') {
+if ($resourceName === "products" && $isItemOperation && $httpMethod === 'PUT') {
     $data = json_decode(file_get_contents("php://input"), true);
+
+    if (!isset($data['name']) || !isset($data['basePrice'])) {
+        http_response_code(422);
+        echo json_encode([
+            'error' => 'Name and base price are required'
+        ]);
+        exit;
+    }
+
     $query = "UPDATE products SET name = :name, basePrice = :base_price, description = :description WHERE id = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute([
@@ -116,6 +149,9 @@ if ($uri === "/products/$id" && $httpMethod === 'PUT') {
     ]);
     if ($stmt->rowCount() === 0) {
         http_response_code(404);
+        echo json_encode([
+            'error' => 'Product not found'
+        ]);
         exit;
     }
     http_response_code(204);
