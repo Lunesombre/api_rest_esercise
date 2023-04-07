@@ -4,7 +4,7 @@ namespace App\Config;
 
 use Throwable;
 
-class ExceptionHanlderInitializer
+class ExceptionHandlerInitializer
 {
     public static function registerGlobalExceptionHandler()
     {

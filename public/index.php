@@ -4,7 +4,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 header('Content-Type: application/json; charset=utf-8');
 
 use App\Config\DbInitializer;
-use App\Config\ExceptionHanlderInitializer;
+use App\Config\ExceptionHandlerInitializer;
 use Symfony\Component\Dotenv\Dotenv;
 
 
@@ -13,7 +13,7 @@ $dotenv = new Dotenv();
 $dotenv->loadEnv('.env');
 
 // Initialisation BDD
-ExceptionHanlderInitializer::registerGlobalExceptionHandler();
+ExceptionHandlerInitializer::registerGlobalExceptionHandler();
 $pdo = DbInitializer::getPdoInstance();
 
 
